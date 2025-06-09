@@ -2,14 +2,25 @@
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
     public static void main(String[] args) {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        System.out.printf("Hello and welcome!");
+        // Crear una instancia de NetworkManager con BusNetwork
+        NetworkManager manager = new NetworkManager(new BusNetwork());
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            System.out.println("i = " + i);
-        }
+        // Configurar la red con la topología de bus y el número de nodos
+        manager.configureNetwork(5);
+
+        // Enviar mensajes antes de ejecutar la red
+        manager.sendMessage(0, 1, "Hello to Node 1");
+        manager.sendMessage(1, 2, "Hello to Node 2");
+        manager.sendMessage(2, 3, "Hello to Node 3");
+        manager.sendMessage(4, 0, "Hello to Node 0");
+
+        // Esperar un momento para que los nodos comiencen a procesar
+        try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+
+        // Ejecutar la red
+        manager.runNetwork();
+
+        // Cerrar la red
+        manager.shutdown();
     }
 }
