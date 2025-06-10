@@ -14,9 +14,6 @@ public class Main {
         manager.sendMessage(2, 3, "Hello to Node 3");
         manager.sendMessage(4, 0, "Hello to Node 0");
 
-        // Esperar un momento para que los nodos comiencen a procesar
-        try { Thread.sleep(100); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-
         // Ejecutar la red
         manager.runNetwork();
 

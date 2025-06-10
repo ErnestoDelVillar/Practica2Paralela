@@ -13,7 +13,7 @@ public class BusNetwork implements NetworkTopology {
     @Override
     public void configureNetwork(int numberOfNodes) {
         nodes = new ArrayList<>();
-        messageLatch = new CountDownLatch(4); // Para los 4 mensajes
+        messageLatch = new CountDownLatch(4);
         for (int i = 0; i < numberOfNodes; i++) {
             nodes.add(new Node(i, false, messageLatch));
         }
@@ -24,21 +24,17 @@ public class BusNetwork implements NetworkTopology {
                 }
             }
         }
-        executor = Executors.newFixedThreadPool(numberOfNodes); // 5 hilos, como en la versión exitosa
+        executor = Executors.newFixedThreadPool(3);
     }
 
     @Override
     public void sendMessage(int from, int to, String message) {
         if (from >= 0 && from < nodes.size() && to >= 0 && to < nodes.size()) {
             System.out.println("Sending message from " + from + " to " + to + ": " + message);
-            try {
-                executor.submit(() -> {
-                    nodes.get(to).receiveMessage(new Mensaje(from, to, message));
-                    System.out.println("Task submitted and executed for message from " + from + " to " + to);
-                });
-            } catch (Exception e) {
-                System.err.println("Error submitting task for message from " + from + " to " + to + ": " + e.getMessage());
-            }
+            executor.submit(() -> {
+                nodes.get(to).receiveMessage(new Mensaje(from, to, message));
+                System.out.println("Task submitted and executed for message from " + from + " to " + to);
+            });
         } else {
             System.out.println("Invalid node ID: from=" + from + ", to=" + to);
         }
@@ -58,21 +54,26 @@ public class BusNetwork implements NetworkTopology {
     public void shutdown() {
         try {
             System.out.println("Current latch count before await: " + messageLatch.getCount());
-            executor.shutdown(); // Cerrar el executor antes de esperar el latch
-            messageLatch.await(60, TimeUnit.SECONDS); // Tiempo de espera para el latch
-            System.out.println("Latch count after await: " + messageLatch.getCount());
-            System.out.println("Active threads before termination: " + Thread.activeCount());
-            System.out.println("Waiting for executor to terminate...");
-            if (!executor.awaitTermination(240, TimeUnit.SECONDS)) { // Aumentar tiempo de espera
-                executor.shutdownNow();
-                System.out.println("Executor forced shutdown");
-            } else {
-                System.out.println("Executor terminated gracefully");
-            }
+            executor.shutdown();
             for (Node node : nodes) {
                 node.stop();
             }
-            System.out.println("Shutdown complete");
+            messageLatch.await(5, TimeUnit.SECONDS);
+            System.out.println("Latch count after await: " + messageLatch.getCount());
+            System.out.println("Active threads before termination: " + Thread.activeCount());
+            System.out.println("Waiting for executor to terminate...");
+            boolean terminatedGracefully = executor.awaitTermination(480, TimeUnit.SECONDS);
+            if (!terminatedGracefully) {
+                System.out.println("Executor forced shutdown");
+                executor.shutdownNow();
+            } else {
+                System.out.println("Executor terminated gracefully");
+            }
+            if (terminatedGracefully) {
+                System.out.println("Shutdown complete");
+            } else {
+                System.out.println("Shutdown incomplete due to forced termination");
+            }
         } catch (InterruptedException e) {
             executor.shutdownNow();
             Thread.currentThread().interrupt();

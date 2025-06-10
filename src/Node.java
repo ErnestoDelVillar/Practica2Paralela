@@ -25,11 +25,11 @@ public class Node {
         this.messageLatch = messageLatch;
     }
 
-    public void addNeighbor(Node neighbor) {
+    public synchronized void addNeighbor(Node neighbor) {
         neighbors.add(neighbor);
     }
 
-    public List<Node> getNeighbors() { return neighbors; }
+    public List<Node> getNeighbors() { return new ArrayList<>(neighbors); } // Retorna copia para evitar modificaciones externas
     public int getId() { return id; }
 
     public void receiveMessage(Mensaje message) {
@@ -45,8 +45,10 @@ public class Node {
                     System.out.println("Node " + id + " processing message from " + message.getFrom() + ": " + message.getContent());
                     messagesProcessed.incrementAndGet();
                     if (forwardMessages && message.getTo() != id) {
-                        for (Node neighbor : neighbors) {
-                            neighbor.receiveMessage(message);
+                        synchronized (this) { // Sincronizar el reenvío para evitar colisiones
+                            for (Node neighbor : neighbors) {
+                                neighbor.receiveMessage(message);
+                            }
                         }
                     }
                     if (message.getTo() == id) {
@@ -64,6 +66,7 @@ public class Node {
 
     public void stop() {
         running = false;
+        messageQueue.clear();
     }
 
     public int getMessagesProcessed() { return messagesProcessed.get(); }
