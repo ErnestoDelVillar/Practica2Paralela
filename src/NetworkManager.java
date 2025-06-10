@@ -5,8 +5,8 @@ public class NetworkManager {
         this.topology = topology;
     }
 
-    public void configureNetwork(int numberOfNodes) {
-        topology.configureNetwork(numberOfNodes);
+    public void configureNetwork(int numberOfNodes, int numberOfMessages) {
+        topology.configureNetwork(numberOfNodes, numberOfMessages);
     }
 
     public void sendMessage(int from, int to, String message) {
