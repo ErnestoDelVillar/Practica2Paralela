@@ -27,5 +27,18 @@ public class Main {
         ringManager.sendMessage(3, 0, "Hello to Node 0 from Node 3");
         ringManager.runNetwork();
         ringManager.shutdown();
+
+        // Probar MeshNetwork
+        System.out.println("\n=== Probando MeshNetwork ===");
+        NetworkManager meshManager = new NetworkManager(new MeshNetwork());
+        meshManager.configureNetwork(numberOfNodes, numberOfMessages);
+
+        meshManager.sendMessage(0, 1, "Hello to Node 1 from Node 0");
+        meshManager.sendMessage(1, 2, "Hello to Node 2 from Node 1");
+        meshManager.sendMessage(2, 3, "Hello to Node 3 from Node 2");
+        meshManager.sendMessage(3, 0, "Hello to Node 0 from Node 3");
+
+        meshManager.runNetwork();
+        meshManager.shutdown();
     }
 }
