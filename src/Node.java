@@ -15,7 +15,7 @@ public class Node {
     private final boolean forwardMessages;
     private final AtomicInteger messagesProcessed;
     private final CountDownLatch messageLatch;
-    private final HashSet<Integer> processedMessages; // Usar Integer para messageId
+    private final HashSet<Integer> processedMessages;
 
     public Node(int id, boolean forwardMessages, CountDownLatch messageLatch) {
         this.id = id;
@@ -25,7 +25,7 @@ public class Node {
         this.forwardMessages = forwardMessages;
         this.messagesProcessed = new AtomicInteger(0);
         this.messageLatch = messageLatch;
-        this.processedMessages = new HashSet<>(); // Cambiar a HashSet<Integer>
+        this.processedMessages = new HashSet<>();
     }
 
     public synchronized void addNeighbor(Node neighbor) {
@@ -38,46 +38,51 @@ public class Node {
     public void receiveMessage(Mensaje message) {
         synchronized (this) {
             System.out.println("Node " + id + " enqueued message from " + message.getFrom() + " to " + message.getTo());
-            messageQueue.offer(new Mensaje(message.getFrom(), message.getTo(), message.getContent(), message.isDelivered()));
+            messageQueue.offer(new Mensaje(message, message.getTtl()));
         }
     }
 
     public void run() {
-        while (running || !messageQueue.isEmpty()) {
+        while (running || !messageQueue.isEmpty() || messageLatch.getCount() > 0) {
             try {
-                Mensaje message = messageQueue.poll(1, TimeUnit.MILLISECONDS);
-                if (message != null && !processedMessages.contains(message.getMessageId())) {
-                    synchronized (this) {
-                        System.out.println("Node " + id + " processing message from " + message.getFrom() + ": " + message.getContent());
+                Mensaje message = messageQueue.poll(1, TimeUnit.SECONDS);
+                if (message == null) {
+                    if (!running && messageLatch.getCount() == 0) {
+                        break;
+                    }
+                    continue;
+                }
+                synchronized (processedMessages) {
+                    if (!processedMessages.contains(message.getMessageId())) {
+                        System.out.println("Node " + id + " processing message from " + message.getFrom() + " to " + message.getTo() + ": " + message.getContent());
                         processedMessages.add(message.getMessageId());
                         messagesProcessed.incrementAndGet();
                         if (message.getTo() == id) {
-                            message.setDelivered(); // Establecer delivered al llegar al destino
-                            if (messageLatch.getCount() > 0) { // Decremento solo si hay cuentas pendientes
+                            message.setDelivered();
+                            if (messageLatch.getCount() > 0) {
                                 messageLatch.countDown();
                                 System.out.println("Node " + id + " decremented latch to " + messageLatch.getCount());
                             }
-                        } else if (forwardMessages && !message.isDelivered()) {
+                        } else if (forwardMessages && !message.isDelivered() && message.getTtl() > 0) {
                             for (Node neighbor : neighbors) {
-                                Mensaje copy = new Mensaje(message.getFrom(), message.getTo(), message.getContent(), message.isDelivered());
-                                neighbor.receiveMessage(copy);
+                                System.out.println("Node " + id + " forwarding message from " + message.getFrom() + " to neighbor " + neighbor.getId());
+                                neighbor.receiveMessage(new Mensaje(message, message.getTtl() - 1));
                             }
                         }
                     }
                 }
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                running = false;
+                // Ignorar interrupciones durante poll para continuar procesando
+                System.out.println("Node " + id + " ignoring interrupt during message processing");
             }
         }
-        synchronized (this) {
-            System.out.println("Node " + id + " finished processing");
-        }
+        System.out.println("Node " + id + " finished processing with queue size: " + messageQueue.size());
     }
 
     public void stop() {
         running = false;
-        messageQueue.clear(); // Limpiar cola para evitar bucles
+        Thread.currentThread().interrupt(); // Interrumpir para desbloquear poll al cerrar
+        System.out.println("Node " + id + " stop called");
     }
 
     public int getMessagesProcessed() { return messagesProcessed.get(); }
