@@ -14,7 +14,7 @@ public class BusNetwork implements NetworkTopology {
     @Override
     public void configureNetwork(int numberOfNodes, int numberOfMessages) {
         if (numberOfNodes < 1) {
-            throw new IllegalArgumentException("BusNetwork requires at least 1 node");
+            throw new IllegalArgumentException("BusNetwork requiere al menos 1 nodo");
         }
         nodes = new ArrayList<>();
         messageLatch = new CountDownLatch(numberOfMessages);
@@ -35,18 +35,18 @@ public class BusNetwork implements NetworkTopology {
     @Override
     public void sendMessage(int from, int to, String message) {
         if (from >= 0 && from < nodes.size() && to >= 0 && to < nodes.size()) {
-            System.out.println("Sending message from " + from + " to " + to + ": " + message);
+            System.out.println("Enviando mensaje de " + from + " a " + to + ": " + message);
             executor.submit(() -> {
                 try {
                     nodes.get(to).receiveMessage(new Mensaje(from, to, message, false, 1));
-                    System.out.println("Task submitted and executed for message from " + from + " to " + to);
+                    System.out.println("Tarea enviada y ejecutada para mensaje de " + from + " a " + to);
                 } finally {
                     sendLatch.countDown();
-                    System.out.println("Send latch decremented to: " + sendLatch.getCount());
+                    System.out.println("Send latch decreció a: " + sendLatch.getCount());
                 }
             });
         } else {
-            System.out.println("Invalid node ID: from=" + from + ", to=" + to);
+            System.out.println("ID de nodo inválido: from=" + from + ", to=" + to);
         }
     }
 
@@ -54,39 +54,39 @@ public class BusNetwork implements NetworkTopology {
     public void runNetwork() {
         for (Node node : nodes) {
             executor.submit(() -> {
-                System.out.println("Starting node " + node.getId());
+                System.out.println("Nodo " + node.getId() + " iniciando");
                 node.run();
             });
         }
-        System.out.println("All nodes started");
+        System.out.println("Todos los nodos iniciaron");
     }
 
     @Override
     public void shutdown() {
         try {
-            System.out.println("Waiting for all messages to be sent...");
-            long remainingTime = 10_000; // 10 segundos en milisegundos
+            System.out.println("Esperando a que todos los mensajes sean enviados...");
+            long remainingTime = 10_000;
             long startTime = System.currentTimeMillis();
             while (remainingTime > 0) {
                 try {
                     if (sendLatch.await(remainingTime, TimeUnit.MILLISECONDS)) {
                         break;
                     }
-                    System.out.println("Timeout waiting for messages to be sent");
+                    System.out.println("Tiempo de espera agotado para el envío de mensajes");
                     break;
                 } catch (InterruptedException e) {
                     long elapsed = System.currentTimeMillis() - startTime;
                     remainingTime -= elapsed;
                     if (remainingTime <= 0) {
-                        System.out.println("Interrupted and timeout waiting for messages to be sent");
+                        System.out.println("Interrumpido y tiempo de espera agotado para el envío de mensajes");
                         break;
                     }
                 }
             }
 
-            System.out.println("Current message latch count before await: " + messageLatch.getCount());
+            System.out.println("Conteo de message latch antes de await: " + messageLatch.getCount());
             boolean latchCompleted = false;
-            remainingTime = 60_000; // 60 segundos
+            remainingTime = 60_000;
             startTime = System.currentTimeMillis();
             while (remainingTime > 0) {
                 try {
@@ -94,31 +94,31 @@ public class BusNetwork implements NetworkTopology {
                         latchCompleted = true;
                         break;
                     }
-                    System.out.println("Timeout waiting for message latch");
+                    System.out.println("Tiempo de espera agotado para message latch");
                     break;
                 } catch (InterruptedException e) {
                     long elapsed = System.currentTimeMillis() - startTime;
                     remainingTime -= elapsed;
                     if (remainingTime <= 0) {
-                        System.out.println("Interrupted and timeout waiting for message latch");
+                        System.out.println("Interrumpido y tiempo de espera agotado para message latch");
                         break;
                     }
                 }
             }
 
-            System.out.println("Message latch count after await: " + messageLatch.getCount());
-            System.out.println("Active threads before termination: " + Thread.activeCount());
+            System.out.println("Conteo de message latch después de await: " + messageLatch.getCount());
+            System.out.println("Hilos activos antes de terminación: " + Thread.activeCount());
 
             if (!latchCompleted) {
-                System.out.println("Forcing cancellation of pending tasks due to message latch timeout");
+                System.out.println("Forzando cancelación de tareas pendientes debido a timeout de message latch");
                 executor.shutdownNow();
             } else {
                 executor.shutdown();
                 for (Node node : nodes) {
                     node.stop();
                 }
-                System.out.println("Waiting for nodes to terminate...");
-                remainingTime = 10_000; // 10 segundos
+                System.out.println("Esperando a que los nodos terminen...");
+                remainingTime = 10_000;
                 startTime = System.currentTimeMillis();
                 boolean nodesTerminated = false;
                 while (remainingTime > 0) {
@@ -127,25 +127,25 @@ public class BusNetwork implements NetworkTopology {
                             nodesTerminated = true;
                             break;
                         }
-                        System.out.println("Timeout waiting for nodes to terminate");
+                        System.out.println("Tiempo de espera agotado para la terminación de nodos");
                         break;
                     } catch (InterruptedException e) {
                         long elapsed = System.currentTimeMillis() - startTime;
                         remainingTime -= elapsed;
                         if (remainingTime <= 0) {
-                            System.out.println("Interrupted and timeout waiting for nodes to terminate");
+                            System.out.println("Interrumpido y tiempo de espera agotado para la terminación de nodos");
                             break;
                         }
                     }
                 }
                 if (!nodesTerminated) {
-                    System.out.println("Forcing executor shutdown as nodes did not terminate");
+                    System.out.println("Forzando cierre del executor porque los nodos no terminaron");
                     executor.shutdownNow();
                 }
             }
 
-            System.out.println("Waiting for executor to terminate...");
-            remainingTime = 10_000; // 10 segundos
+            System.out.println("Esperando a que el executor termine...");
+            remainingTime = 10_000;
             startTime = System.currentTimeMillis();
             boolean terminatedGracefully = false;
             while (remainingTime > 0) {
@@ -154,31 +154,31 @@ public class BusNetwork implements NetworkTopology {
                         terminatedGracefully = true;
                         break;
                     }
-                    System.out.println("Timeout waiting for executor to terminate");
+                    System.out.println("Tiempo de espera agotado para la terminación del executor");
                     break;
                 } catch (InterruptedException e) {
                     long elapsed = System.currentTimeMillis() - startTime;
                     remainingTime -= elapsed;
                     if (remainingTime <= 0) {
-                        System.out.println("Interrupted and timeout waiting for executor to terminate");
+                        System.out.println("Interrumpido y tiempo de espera agotado para la terminación del executor");
                         break;
                     }
                 }
             }
 
             if (terminatedGracefully) {
-                System.out.println("Executor terminated gracefully");
+                System.out.println("Executor terminó correctamente");
             } else {
-                System.out.println("Executor forced shutdown after timeout");
+                System.out.println("Executor forzó cierre tras timeout");
             }
 
             if (terminatedGracefully) {
-                System.out.println("Shutdown complete");
+                System.out.println("Cierre completado");
             } else {
-                System.out.println("Shutdown incomplete due to forced termination");
+                System.out.println("Cierre incompleto debido a terminación forzada");
             }
         } catch (OutOfMemoryError e) {
-            System.err.println("OutOfMemoryError: " + e.getMessage());
+            System.err.println("Error de memoria insuficiente: " + e.getMessage());
             executor.shutdownNow();
         } finally {
             if (!executor.isTerminated()) {

@@ -5,7 +5,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class RingNetwork implements NetworkTopology {
+public class StarNetwork implements NetworkTopology {
     private List<Node> nodes;
     private ExecutorService executor;
     private CountDownLatch messageLatch;
@@ -13,8 +13,8 @@ public class RingNetwork implements NetworkTopology {
 
     @Override
     public void configureNetwork(int numberOfNodes, int numberOfMessages) {
-        if (numberOfNodes < 2) {
-            throw new IllegalArgumentException("RingNetwork requiere al menos 2 nodos");
+        if (numberOfNodes < 1) {
+            throw new IllegalArgumentException("StarNetwork requiere al menos 1 nodo");
         }
         if (numberOfMessages <= 0) {
             throw new IllegalArgumentException("El número de mensajes debe ser positivo");
@@ -25,11 +25,9 @@ public class RingNetwork implements NetworkTopology {
         for (int i = 0; i < numberOfNodes; i++) {
             nodes.add(new Node(i, true, messageLatch));
         }
-        for (int i = 0; i < numberOfNodes; i++) {
-            int prev = (i - 1 + numberOfNodes) % numberOfNodes;
-            int next = (i + 1) % numberOfNodes;
-            nodes.get(i).addNeighbor(nodes.get(prev));
-            nodes.get(i).addNeighbor(nodes.get(next));
+        for (int i = 1; i < numberOfNodes; i++) {
+            nodes.get(0).addNeighbor(nodes.get(i));
+            nodes.get(i).addNeighbor(nodes.get(0));
         }
         executor = Executors.newFixedThreadPool(numberOfNodes);
     }
@@ -39,9 +37,11 @@ public class RingNetwork implements NetworkTopology {
         if (from >= 0 && from < nodes.size() && to >= 0 && to < nodes.size()) {
             System.out.println("Enviando mensaje de " + from + " a " + to + ": " + message);
             if (!executor.isShutdown() && !executor.isTerminated()) {
+                // Usar ttl = 2 para mensajes entre nodos periféricos (from ≠ 0 y to ≠ 0)
+                int ttl = (from != 0 && to != 0) ? 2 : 1;
                 executor.submit(() -> {
                     try {
-                        nodes.get(from).receiveMessage(new Mensaje(from, to, message, false, (nodes.size() + 1) / 2));
+                        nodes.get(from).receiveMessage(new Mensaje(from, to, message, false, ttl));
                         System.out.println("Tarea enviada y ejecutada para mensaje de " + from + " a " + to);
                     } finally {
                         sendLatch.countDown();
@@ -56,13 +56,34 @@ public class RingNetwork implements NetworkTopology {
 
     @Override
     public void runNetwork() {
+        CountDownLatch startLatch = new CountDownLatch(nodes.size());
         for (Node node : nodes) {
             executor.submit(() -> {
                 System.out.println("Nodo " + node.getId() + " iniciando");
+                startLatch.countDown();
+                System.out.println("Start latch decreció a: " + startLatch.getCount());
                 node.run();
             });
         }
-        System.out.println("Todos los nodos iniciaron");
+        long remainingTime = 10_000;
+        long startTime = System.currentTimeMillis();
+        while (remainingTime > 0) {
+            try {
+                if (startLatch.await(remainingTime, TimeUnit.MILLISECONDS)) {
+                    System.out.println("Todos los nodos iniciaron");
+                    break;
+                }
+                System.out.println("Tiempo de espera agotado para el inicio de nodos");
+                break;
+            } catch (InterruptedException e) {
+                long elapsed = System.currentTimeMillis() - startTime;
+                remainingTime -= elapsed;
+                if (remainingTime <= 0) {
+                    System.out.println("Interrumpido y tiempo de espera agotado para el inicio de nodos");
+                    break;
+                }
+            }
+        }
     }
 
     @Override
